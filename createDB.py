@@ -18,19 +18,35 @@ def init_db(db_name):
     conn.commit()
     conn.close()
 
+
+def init_ski_user_database(db_name):
+    conn = sqlite3.connect(f'{db_name}.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE users (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              username STRING,
+              password STRING,
+              email STRING)
+              ''')
+
+
 def init_ski_review_database(db_name):
-    conn = sqlite3.connet(f'{db_name}.db')
-    c = conn.cunsor()
+    conn = sqlite3.connect(f'{db_name}.db')
+    c = conn.cursor()
     c.execute('''
             CREATE TABLE reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     resort_id INTEGER,
-    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+    review_id INTEGER,
+    user_id INTEGER,
     job_title TEXT,
     hourly_pay REAL,
     tip_amount REAL,
     housing_provided BOOLEAN,
-    housing_rating INTEGER CHECK(housing_rating >= 1 and housing_rating <= 5 )
+    rating INTEGER CHECK(rating >= 1 AND rating <= 5),
+    housing_rating INTEGER CHECK(housing_rating >= 1 and housing_rating <= 5 ),
+    safety_rating INTEGER CHECK(safety_rating >= 1 AND safety_rating <= 5),
     FOREIGN KEY (resort_id) REFERENCES resorts(id))
               ''')
 
@@ -91,5 +107,6 @@ def delet_from_users():
 if __name__ == '__main__':
     #init_db('users')
     #init_db('skiresorts_temp')
-    init_ski_review_database('reviews')
+    #init_ski_review_database('reviews')
+    init_ski_user_database('users')
     #app.run(debug=True)
