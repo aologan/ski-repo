@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 import sqlite3
 import pandas as pd
+import bcrypt
 
 
 app = Flask(__name__)
@@ -10,6 +11,19 @@ def get_db_connection(db):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error' : f"{error}: Resouce not found"}), 404
+
+
+@app.errorhandler(500)
+def not_found(error):
+    return jsonify({'error' : f'{str(error)}: Internal server error'})
+
+
+
 
 @app.route('/api/resorts', methods=['GET'])
 def get_resorts():
@@ -67,8 +81,7 @@ def add_resort():
     conn = get_db_connection('ski_resorts.db')
     
     # SQL query to insert a new resort
-    query = """
-    INSERT INTO resorts (name, location, rating, description)
+    query = """ INSERT INTO resorts (name, location, rating, description)
     VALUES (?, ?, ?, ?)
     """
     
@@ -86,9 +99,8 @@ def add_resort():
     return jsonify({"message": "Resort added successfully"}), 201  # Return success message
 
 
-
 #All CRUD FUNCTIONALITY FOR USERS
-@app.route('/api/routes/user/<int:id>', methods=['GET'])
+@app.route('/api/user/<int:id>', methods=['GET'])
 def get_user_by_id(id): 
     conn = get_db_connection('reviews.db')  # Create a connection to the database
     query = "SELECT FROM users WHERE users.id == ?"  # SQL query to get user by ID
@@ -99,7 +111,7 @@ def get_user_by_id(id):
     else:
         return jsonify(df.to_dict(orient='records'))  # Return user data
     
-@app.route('/api/routes/users', methods=['POST'])
+@app.route('/api/users', methods=['POST'])
 def add_users():
     data = request.get_json()
     conn = get_db_connection('users.db')
@@ -112,7 +124,10 @@ def add_users():
     conn.close()
 
 
-@app.route('api/routes/users/<string:username>', methods=['GET'])
+#registar with authentication
+
+
+@app.route('/api/users/<string:username>', methods=['GET'])
 def get_by_username(username):
     conn = get_db_connection('users.db')
     query = 'SELECT * from users where users.username == ?'
@@ -124,11 +139,10 @@ def get_by_username(username):
     else:
         return jsonify(response.to_dict(orient='records'))
     
-app.route('api/route/users/<int:id>', methods=['DELETE'])
+@app.route('/api/users/<int:id>', methods=['DELETE'])
 def delete_users(id):
     conn = get_db_connection('users.db')
     query = "DELETE * FROM users WHERE users.id == ?"  # SQL query to get user by ID
-    query = 'DELETE FROM resorts where resorts.id == ?'
     cursor = conn.cursor()
     cursor.execute(query, (id))
     conn.commit()
@@ -138,6 +152,75 @@ def delete_users(id):
     else:
         conn.close()
         return jsonify({'message': 'user deleted succesfully deleted'})
+
+@app.route('/api/register', methods=['POST'])
+def register_user():
+    #get incoming data
+    data = request.get_json()
+    #connect to db
+    conn = get_db_connection('users.db')
+
+
+    #check if te data base if the user exist
+    check_existing = 'select * from users WHERE username = ? or email = ?'
+    user_condition = pd.read_sql_query(check_existing, conn, params=(data['email'], data['username']))
+    username = data['username']
+    if user_condition.empty:
+        #hash the password
+        hashed = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+        #specify where data will be inserted
+        query = "INSERT into users (username, email, password) VALUES (?, ?, ?)"
+        conn.execute(query, (data['username'],
+                            data['email'],
+                            hashed))
+        conn.commit()
+        conn.close()
+        return jsonify({'message' : 'username succefully added'})
+    else:
+        return jsonify({'message': f"{username} exist"})
+
+
+@app.route('/api/login', methods=['GET'])
+def login_user():
+
+    login_data = request.get_json()
+
+    conn = get_db_connection('users.db')
+    
+    username = login_data['username']
+    login_password = login_data['password']
+
+    query = 'SELECT password from users WHERE username == ?'
+    stored_password = pd.read_sql_query(query, conn, params=(username,))
+
+
+    if stored_password.empty:
+        return jsonify({'message' : f"{login_data['username']} does not exist"})
+    
+    password = stored_password['password'].iloc[0]
+    print("Here",password)
+ 
+
+    #check sql password with login password using brcpyt.checkpwd
+    if bcrypt.checkpw(login_password.encode('utf-8'), password):
+        query = 'select * from users where password == ?'
+        results = pd.read_sql_query(query, conn, params=(password,))
+        return jsonify({'message':'Sucessful login'}), 200
+    else:
+        conn.commit()
+        conn.close()
+        return jsonify({'message':'Incorrect login'}), 400
+    
+
+    
+    
+
+
+
+
+
+
+
     
 
 
