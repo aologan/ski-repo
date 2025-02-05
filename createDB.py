@@ -43,11 +43,13 @@ def init_ski_review_database(db_name):
     job_title TEXT,
     hourly_pay REAL,
     tip_amount REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     housing_provided BOOLEAN,
     rating INTEGER CHECK(rating >= 1 AND rating <= 5),
     housing_rating INTEGER CHECK(housing_rating >= 1 and housing_rating <= 5 ),
     safety_rating INTEGER CHECK(safety_rating >= 1 AND safety_rating <= 5),
-    FOREIGN KEY (resort_id) REFERENCES resorts(id))
+    FOREIGN KEY (resort_id) REFERENCES resorts(id) ON DELETE CASCADE, 
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE )
               ''')
 
 
@@ -107,6 +109,6 @@ def delet_from_users():
 if __name__ == '__main__':
     #init_db('users')
     #init_db('skiresorts_temp')
-    #init_ski_review_database('reviews')
-    init_ski_user_database('users')
+    init_ski_review_database('reviews')
+    #init_ski_user_database('users')
     #app.run(debug=True)

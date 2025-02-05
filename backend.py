@@ -2,9 +2,12 @@ from flask import Flask, jsonify, request
 import sqlite3
 import pandas as pd
 import bcrypt
+from functools import wraps
+import jwt
 
 
 app = Flask(__name__)
+SECERT_KEY = "SE"
 
 
 def get_db_connection(db):
@@ -21,6 +24,32 @@ def not_found(error):
 @app.errorhandler(500)
 def not_found(error):
     return jsonify({'error' : f'{str(error)}: Internal server error'})
+
+
+# Middleware to verify JWT
+
+#create authenticte funtion with parameter f
+def authenticate_token(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get("Athentication")
+
+        if not token:
+            return jsonify({'message' : 'Token does not exist'})
+        
+        try:
+            token = token.split(' ')[1]
+            #decode header data
+            data = jwt.decode(token, SECERT_KEY ,algorithm=['HS256'])
+            #attach data to user request
+            request.user = data
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message' : 'Expired Signature'}), 403
+        except jwt.InvalidTokenError:
+            return jsonify({'message' : 'Invalid Token Error'}), 403
+        return(*args, *kwargs)
+    return decorated
+
 
 
 
@@ -205,11 +234,52 @@ def login_user():
     if bcrypt.checkpw(login_password.encode('utf-8'), password):
         query = 'select * from users where password == ?'
         results = pd.read_sql_query(query, conn, params=(password,))
+        conn.commit()
+        conn.close()
         return jsonify({'message':'Sucessful login'}), 200
     else:
         conn.commit()
         conn.close()
         return jsonify({'message':'Incorrect login'}), 400
+    
+#Code to add login data
+@app.route('/api/users/update', methods=['PUT'])
+def update_users():
+    login_data = request.get_json()
+    password = login_data['password']
+    email = login_data['email']
+    username = login_data['username']
+    new_email = login_data['new_email']
+    new_username = login_data['new_username']
+
+    query = 'SELECT * from users WHERE username = ?'
+    conn = get_db_connection('users.db')
+    stored_password = pd.read_sql_query(query, conn, params=(username,))
+
+    if stored_password.empty:
+        return jsonify({'message' : 'The username does not exist'})
+    else:
+        query = 'UPDATE users SET'
+        params = {}
+        if new_email:
+            extend = ',email = ? where username = ?'
+            query += extend
+            params = {'email' : new_email, 'username' : username }
+        if new_username:
+            extend = ''
+        
+        new_query = query.replace(",", " ")
+        print(new_query)
+        conn.execute(new_query, tuple(params))
+        conn.commit()
+        conn.close()
+        return jsonify({'message' : 'succefully update user'})
+
+
+
+
+
+
     
 
     
