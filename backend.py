@@ -232,16 +232,31 @@ def login_user():
 
     #check sql password with login password using brcpyt.checkpwd
     if bcrypt.checkpw(login_password.encode('utf-8'), password):
-        query = 'select * from users where password == ?'
-        results = pd.read_sql_query(query, conn, params=(password,))
-        conn.commit()
+        token = jwt.encode({'username' : username}, SECERT_KEY, algorithm=['HS256'])
         conn.close()
-        return jsonify({'message':'Sucessful login'}), 200
+        return jsonify({'message':'Sucessful login', 'token' : token}), 200
     else:
-        conn.commit()
         conn.close()
         return jsonify({'message':'Incorrect login'}), 400
+
+@app.route('/api/users/data', methods=['GET'])
+@authenticate_token
+def get_data():
+    username = request.user['username']
     
+    conn = get_db_connection('user.db')
+    query = 'SELECT * FROM users WHERE username == ?'
+    user_data = pd.read_sql_query(query, conn, params=(username,))
+
+    conn.close()
+    
+    if user_data.empty:
+        return jsonify({'message' : 'user data does not exist'})
+    else:
+        return jsonify({'message' : 'User data successfully discovered'})
+
+
+
 #Code to add login data
 @app.route('/api/users/update', methods=['PUT'])
 def update_users():
@@ -274,8 +289,6 @@ def update_users():
         conn.commit()
         conn.close()
         return jsonify({'message' : 'succefully update user'})
-
-
 
 
 
