@@ -4,7 +4,7 @@ import pandas as pd
 import bcrypt
 from functools import wraps
 import jwt
-
+import utils as ut
 
 app = Flask(__name__)
 SECERT_KEY = "SE"
@@ -227,24 +227,23 @@ def login_user():
         return jsonify({'message' : f"{login_data['username']} does not exist"})
     
     password = stored_password['password'].iloc[0]
-    print("Here",password)
+
  
 
     #check sql password with login password using brcpyt.checkpwd
     if bcrypt.checkpw(login_password.encode('utf-8'), password):
-        token = jwt.encode({'username' : username}, SECERT_KEY, algorithm=['HS256'])
+        token = jwt.encode({'username' : username}, SECERT_KEY, algorithm='HS256')
+        message = get_data(username)
         conn.close()
-        return jsonify({'message':'Sucessful login', 'token' : token}), 200
+        return jsonify({'message':'Sucessful login', 'token' : token, "user_data" : message}), 200
     else:
         conn.close()
         return jsonify({'message':'Incorrect login'}), 400
 
-@app.route('/api/users/data', methods=['GET'])
-@authenticate_token
-def get_data():
-    username = request.user['username']
+
+def get_data(username):
     
-    conn = get_db_connection('user.db')
+    conn = get_db_connection('users.db')
     query = 'SELECT * FROM users WHERE username == ?'
     user_data = pd.read_sql_query(query, conn, params=(username,))
 
@@ -253,7 +252,8 @@ def get_data():
     if user_data.empty:
         return jsonify({'message' : 'user data does not exist'})
     else:
-        return jsonify({'message' : 'User data successfully discovered'})
+        data = ut.decode_password(user_data)
+        return data
 
 
 
