@@ -293,6 +293,35 @@ def update_users():
 
 
 
+#review routes and qouries
+@app.route('/reviews', methods=['POST'])
+def post_review():
+    data = request.get_json()
+
+    #connect to sql database
+    conn = get_db_connection('reviews.db')
+    query = '''INSERT into reviews (resort_id, review_id, 
+            user_id, job_title, hourly_pay, tip_amount, 
+            created_at, housing_rating, safety_rating) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+    conn.execute(query, tuple(data))
+    conn.commit()
+    conn.close()
+    return jsonify({'message' : 'connection succefully closed'})
+
+
+@app.route('/reviews', methods=['GET'])
+def get_reviews():
+    
+    query = 'select * from reviews'
+    conn = get_db_connection('reviews')
+    response = pd.read_sql_query(conn, query)
+    conn.close
+    return jsonify({'message' : response})
+ 
+
+
+
     
 
     
